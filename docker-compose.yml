@@ -1,0 +1,41 @@
+services:
+  warp-gateway:
+    build: .
+    image: warp-gateway:latest
+    container_name: warp-gateway
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun     # for the userspace WireGuard fallback
+    sysctls:
+      net.ipv4.ip_forward: "1"
+      net.ipv4.conf.all.src_valid_mark: "1"
+      net.ipv4.conf.all.rp_filter: "2"
+      net.ipv4.conf.default.rp_filter: "2"
+      net.ipv4.conf.all.send_redirects: "0"
+      net.ipv4.conf.default.send_redirects: "0"
+    environment:
+      KILL_SWITCH: ${KILL_SWITCH:-false}
+      ENABLE_DNS: ${ENABLE_DNS:-true}
+      DNS_UPSTREAMS: ${DNS_UPSTREAMS:-1.1.1.1 1.0.0.1}
+      WARP_LICENSE_KEY: ${WARP_LICENSE_KEY:-}
+      WARP_ENDPOINT: ${WARP_ENDPOINT:-}
+      HEALTH_INTERVAL: ${HEALTH_INTERVAL:-10}
+      HEALTH_FAILURES: ${HEALTH_FAILURES:-3}
+    volumes:
+      - ./data:/data                  # WARP account + WireGuard profile
+    networks:
+      lan:
+        ipv4_address: ${GATEWAY_IP:?set GATEWAY_IP in .env}
+
+networks:
+  lan:
+    name: warp-gateway-lan
+    driver: ${LAN_DRIVER:-macvlan}
+    driver_opts:
+      parent: ${PARENT_INTERFACE:?set PARENT_INTERFACE in .env}
+    ipam:
+      config:
+        - subnet: ${LAN_SUBNET:?set LAN_SUBNET in .env}
+          gateway: ${LAN_ROUTER:?set LAN_ROUTER in .env}
